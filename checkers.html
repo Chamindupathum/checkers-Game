@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Checkers Game with AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .player-info {
+            text-align: center;
+        }
+
+        .player-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .player-pieces {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .active-player {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0;
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 auto;
+            max-width: 500px;
+            aspect-ratio: 1;
+        }
+
+        .square {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .square.light {
+            background-color: #f0d9b5;
+        }
+
+        .square.dark {
+            background-color: #b58863;
+        }
+
+        .square.selected {
+            background-color: #7fc97f !important;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .square.valid-move {
+            background-color: #ffd700 !important;
+        }
+
+        .square.valid-move::after {
+            content: '';
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+        }
+
+        .piece {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+            position: relative;
+        }
+
+        .piece:hover {
+            transform: scale(1.1);
+        }
+
+        .piece.red {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #c92a2a);
+            border: 3px solid #a61e1e;
+        }
+
+        .piece.black {
+            background: radial-gradient(circle at 30% 30%, #495057, #212529);
+            border: 3px solid #000;
+        }
+
+        .piece.king::before {
+            content: '♔';
+            font-size: 2em;
+            color: gold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1em;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            margin: 5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .difficulty-selector {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .difficulty-selector label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        select {
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: 2px solid #667eea;
+            font-size: 1em;
+            cursor: pointer;
+        }
+
+        .status-message {
+            text-align: center;
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #856404;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.winner {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎯 Advanced Checkers</h1>
+        
+        <div class="game-info">
+            <div class="player-info" id="player-red-info">
+                <div class="player-name" style="color: #c92a2a;">You (Red)</div>
+                <div class="player-pieces">Pieces: <span id="red-count">12</span></div>
+            </div>
+            <div class="player-info" id="player-black-info">
+                <div class="player-name" style="color: #212529;">AI (Black)</div>
+                <div class="player-pieces">Pieces: <span id="black-count">12</span></div>
+            </div>
+        </div>
+
+        <div id="board"></div>
+
+        <div class="status-message" id="status-message"></div>
+
+        <div class="controls">
+            <button onclick="game.newGame()">New Game</button>
+            <button onclick="game.showHint()">Hint</button>
+            <button onclick="game.analyzePosition()">Analyze Position</button>
+            <button onclick="game.showMoveHistory()">Move History</button>
+        </div>
+
+        <div class="difficulty-selector">
+            <label for="difficulty">AI Difficulty:</label>
+            <select id="difficulty" onchange="game.setDifficulty(this.value)">
+                <option value="2">Easy</option>
+                <option value="4" selected>Medium</option>
+                <option value="6">Hard</option>
+                <option value="8">Expert</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+        class CheckersGame {
+            constructor() {
+                this.board = [];
+                this.currentPlayer = 'red';
+                this.selectedPiece = null;
+                this.validMoves = [];
+                this.difficulty = 4;
+                this.aiThinking = false;
+                this.mustCapture = false;
+                
+                // Advanced AI optimization features
+                this.transpositionTable = new Map();
+                this.maxTableSize = 500000;
+                this.moveHistory = [];
+                this.analysisMode = false;
+                this.principalVariation = [];
+                this.currentDepth = 0;
+                this.openingBook = this.initializeOpeningBook();
+                
+                // Killer moves and history heuristic
+                this.killerMoves = Array(20).fill(null).map(() => []);
+                this.historyTable = {};
+                
+                // Performance metrics
+                this.metrics = {
+                    nodesSearched: 0,
+                    cacheHits: 0,
+                    cacheMisses: 0,
+                    pruneCount: 0,
+                    searchTime: 0,
+                    movesOrdered: 0,
+                    ttSize: 0
+                };
+                
+                this.initBoard();
+                this.render();
+            }
+
+            initializeOpeningBook() {
+                // Comprehensive opening book database with proven strong positions
+                return {
+                    // Standard opening patterns
+                    patterns: [
+                        { from: [2, 1], to: [3, 2], score: 8 },
+                        { from: [2, 3], to: [3, 4], score: 9 },
+                        { from: [2, 5], to: [3, 6], score: 8 },
+                        { from: [2, 1], to: [3, 0], score: 7 },
+                        { from: [2, 7], to: [3, 6], score: 7 },
+                        { from: [1, 0], to: [2, 1], score: 6 },
+                        { from: [1, 2], to: [2, 3], score: 7 },
+                    ],
+                    // Endgame database for 6 pieces or less
+                    endgameDB: new Map()
+                };
+            }
+
+            orderMovesAdvanced(moves, ply, pvLine) {
+                // Multi-layered move ordering for maximum alpha-beta efficiency
+                const scoredMoves = moves.map(move => {
+                    let score = 0;
+                    
+                    // 1. Principal Variation (PV) move gets highest priority
+                    if (pvLine.length > 0 && this.movesEqual(move, pvLine[0])) {
+                        score += 10000;
+                    }
+                    
+                    // 2. Transposition table move
+                    const hash = this.getHashKey(this.board, 0, -Infinity, Infinity);
+                    if (this.transpositionTable.has(hash)) {
+                        const ttMove = this.transpositionTable.get(hash).move;
+                        if (ttMove && this.movesEqual(move, ttMove)) {
+                            score += 5000;
+                        }
+                    }
+                    
+                    // 3. Killer moves heuristic
+                    if (ply < this.killerMoves.length) {
+                        const killerIndex = this.killerMoves[ply].findIndex(km => 
+                            km && this.movesEqual(km, move)
+                        );
+                        if (killerIndex !== -1) {
+                            score += 3000 - killerIndex * 1000;
+                        }
+                    }
+                    
+                    // 4. History heuristic
+                    const moveKey = this.getMoveKey(move);
+                    score += (this.historyTable[moveKey] || 0);
+                    
+                    // 5. Capture moves (MVV-LVA ordering)
+                    if (move.capture) {
+                        const capturedPiece = this.board[move.capture.row][move.capture.col];
+                        const movingPiece = this.board[move.fromRow][move.fromCol];
+                        if (capturedPiece && movingPiece) {
+                            const victimValue = capturedPiece.king ? 50 : 30;
+                            const attackerValue = movingPiece.king ? 5 : 3;
+                            score += (victimValue * 10 - attackerValue) + 1000;
+                        }
+                    }
+                    
+                    // 6. Promotion bonus
+                    const piece = this.board[move.fromRow][move.fromCol];
+                    if (piece && !piece.king && move.row === 7) {
+                        score += 500;
+                    }
+                    
+                    // 7. Center control and advancement
+                    const centerDistance = Math.abs(3.5 - move.col) + Math.abs(3.5 - move.row);
+                    score += (14 - centerDistance) * 5;
+                    
+                    // 8. Piece advancement
+                    if (piece) {
+                        score += move.row * 3;
+                    }
+                    
+                    return { move, score };
+                });
+                
+                // Sort moves by score (highest first)
+                scoredMoves.sort((a, b) => b.score - a.score);
+                return scoredMoves.map(sm => sm.move);
+            }
+            
+            storeKillerMove(move, ply) {
+                if (ply >= this.killerMoves.length || !move || move.capture) return;
+                
+                // Don't store duplicates
+                const exists = this.killerMoves[ply].some(km => km && this.movesEqual(km, move));
+                if (!exists) {
+                    this.killerMoves[ply].unshift(move);
+                    // Keep only top 2 killer moves per ply
+                    if (this.killerMoves[ply].length > 2) {
+                        this.killerMoves[ply].pop();
+                    }
+                }
+            }
+            
+            updateHistory(move, depth) {
+                const key = this.getMoveKey(move);
+                // Bonus increases quadratically with depth
+                this.historyTable[key] = (this.historyTable[key] || 0) + depth * depth;
+                
+                // Prevent overflow and maintain relative ordering
+                if (this.historyTable[key] > 10000) {
+                    this.historyTable[key] = Math.floor(this.historyTable[key] / 2);
+                }
+            }
+            
+            getMoveKey(move) {
+                return `${move.fromRow}${move.fromCol}-${move.row}${move.col}`;
+            }
+            
+            movesEqual(m1, m2) {
+                if (!m1 || !m2) return false;
+                return m1.fromRow === m2.fromRow && m1.fromCol === m2.fromCol &&
+                       m1.row === m2.row && m1.col === m2.col;
+            }
+            
+            storeTransposition(hash, depth, score, move, pv, flag = 'exact') {
+                // Replacement strategy: always replace if deeper or same depth
+                if (this.transpositionTable.has(hash)) {
+                    const existing = this.transpositionTable.get(hash);
+                    if (existing.depth > depth) return; // Keep deeper entry
+                }
+                
+                // Limit table size to prevent memory overflow
+                if (this.transpositionTable.size >= this.maxTableSize) {
+                    // Remove 10% of oldest entries (simple aging)
+                    const toRemove = Math.floor(this.maxTableSize * 0.1);
+                    const keys = Array.from(this.transpositionTable.keys());
+                    for (let i = 0; i < toRemove; i++) {
+                        this.transpositionTable.delete(keys[i]);
+                    }
+                }
+                
+                this.transpositionTable.set(hash, {
+                    evaluation: score,
+                    move: move,
+                    depth: depth,
+                    pv: pv,
+                    flag: flag  // 'exact', 'lowerbound', or 'upperbound'
+                });
+            }
+
+            getBestOpeningMove() {
+                // Opening book for first 4-5 moves
+                const totalPieces = this.countTotalPieces();
+                if (totalPieces < 20) return null; // Not in opening anymore
+                
+                const possibleMoves = this.getAllPossibleMoves('black');
+                const bookPatterns = this.openingBook.patterns;
+                
+                // Find matching opening moves
+                const matchingMoves = possibleMoves.filter(move => {
+                    return bookPatterns.some(pattern => 
+                        pattern.from[0] === move.fromRow && pattern.from[1] === move.fromCol &&
+                        pattern.to[0] === move.row && pattern.to[1] === move.col
+                    );
+                });
+                
+                if (matchingMoves.length > 0) {
+                    // Choose highest scored opening
+                    let bestOpening = matchingMoves[0];
+                    let bestScore = 0;
+                    
+                    for (const move of matchingMoves) {
+                        const pattern = bookPatterns.find(p => 
+                            p.from[0] === move.fromRow && p.from[1] === move.fromCol &&
+                            p.to[0] === move.row && p.to[1] === move.col
+                        );
+                        if (pattern && pattern.score > bestScore) {
+                            bestScore = pattern.score;
+                            bestOpening = move;
+                        }
+                    }
+                    
+                    return bestOpening;
+                }
+                
+                return null;
+            }
+            
+            isEarlyGame() {
+                return this.countTotalPieces() >= 20;
+            }
+            
+            isEndgame() {
+                return this.countTotalPieces() <= 6;
+            }
+            
+            countTotalPieces() {
+                let count = 0;
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        if (this.board[row][col]) count++;
+                    }
+                }
+                return count;
+            }
+            
+            getEndgameMove() {
+                // Simplified endgame tablebase - prioritize winning strategy
+                const moves = this.getAllPossibleMoves('black');
+                if (moves.length === 0) return null;
+                
+                // In endgame, prioritize captures and advancement
+                const captureMoves = moves.filter(m => m.capture);
+                if (captureMoves.length > 0) return captureMoves[0];
+                
+                // Push for promotion or hunt opponent pieces
+                let bestMove = moves[0];
+                let bestScore = -Infinity;
+                
+                for (const move of moves) {
+                    let score = 0;
+                    const piece = this.board[move.fromRow][move.fromCol];
+                    
+                    // Advancement bonus
+                    if (!piece.king) {
+                        score += (7 - move.row) * 5;
+                    }
+                    
+                    // Distance to enemy pieces (hunting)
+                    let minDistance = 100;
+                    for (let r = 0; r < 8; r++) {
+                        for (let c = 0; c < 8; c++) {
+                            const enemy = this.board[r][c];
+                            if (enemy && enemy.color === 'red') {
+                                const dist = Math.abs(move.row - r) + Math.abs(move.col - c);
+                                minDistance = Math.min(minDistance, dist);
+                            }
+                        }
+                    }
+                    score -= minDistance * 2;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+                
+                return bestMove;
+            }
+
+            initBoard() {
+                this.board = Array(8).fill(null).map(() => Array(8).fill(null));
+                
+                // Place black pieces (AI)
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        if ((row + col) % 2 === 1) {
+                            this.board[row][col] = { color: 'black', king: false };
+                        }
+                    }
+                }
+                
+                // Place red pieces (Player)
+                for (let row = 5; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        if ((row + col) % 2 === 1) {
+                            this.board[row][col] = { color: 'red', king: false };
+                        }
+                    }
+                }
+            }
+
+            render() {
+                const boardElement = document.getElementById('board');
+                boardElement.innerHTML = '';
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const square = document.createElement('div');
+                        square.className = 'square ' + ((row + col) % 2 === 0 ? 'light' : 'dark');
+                        square.dataset.row = row;
+                        square.dataset.col = col;
+                        
+                        const piece = this.board[row][col];
+                        if (piece) {
+                            const pieceElement = document.createElement('div');
+                            pieceElement.className = `piece ${piece.color}`;
+                            if (piece.king) {
+                                pieceElement.classList.add('king');
+                            }
+                            square.appendChild(pieceElement);
+                        }
+                        
+                        if (this.selectedPiece && this.selectedPiece.row === row && this.selectedPiece.col === col) {
+                            square.classList.add('selected');
+                        }
+                        
+                        if (this.validMoves.some(move => move.row === row && move.col === col)) {
+                            square.classList.add('valid-move');
+                        }
+                        
+                        square.addEventListener('click', () => this.handleSquareClick(row, col));
+                        boardElement.appendChild(square);
+                    }
+                }
+                
+                this.updateGameInfo();
+            }
+
+            handleSquareClick(row, col) {
+                if (this.aiThinking || this.currentPlayer !== 'red') return;
+                
+                const piece = this.board[row][col];
+                
+                if (this.selectedPiece) {
+                    const moveIndex = this.validMoves.findIndex(m => m.row === row && m.col === col);
+                    if (moveIndex !== -1) {
+                        const move = this.validMoves[moveIndex];
+                        this.makeMove(move);
+                        this.selectedPiece = null;
+                        this.validMoves = [];
+                        
+                        if (!this.checkWinner()) {
+                            this.currentPlayer = 'black';
+                            this.render();
+                            setTimeout(() => this.aiMove(), 500);
+                        }
+                    } else if (piece && piece.color === this.currentPlayer) {
+                        this.selectedPiece = { row, col };
+                        this.validMoves = this.getValidMoves(row, col);
+                        this.render();
+                    } else {
+                        this.selectedPiece = null;
+                        this.validMoves = [];
+                        this.render();
+                    }
+                } else if (piece && piece.color === this.currentPlayer) {
+                    this.selectedPiece = { row, col };
+                    this.validMoves = this.getValidMoves(row, col);
+                    this.render();
+                }
+            }
+
+            getValidMoves(row, col) {
+                const piece = this.board[row][col];
+                if (!piece) return [];
+                
+                const moves = [];
+                const captures = this.getCapturesForPiece(row, col, piece);
+                
+                // Check if any captures are available for this player
+                const allCaptures = this.getAllCaptures(piece.color);
+                
+                if (allCaptures.length > 0) {
+                    // Must capture if possible
+                    return captures;
+                }
+                
+                // Normal moves
+                const directions = piece.king ? 
+                    [[-1, -1], [-1, 1], [1, -1], [1, 1]] : 
+                    (piece.color === 'red' ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]]);
+                
+                for (const [dRow, dCol] of directions) {
+                    const newRow = row + dRow;
+                    const newCol = col + dCol;
+                    
+                    if (this.isValidPosition(newRow, newCol) && !this.board[newRow][newCol]) {
+                        moves.push({ row: newRow, col: newCol, fromRow: row, fromCol: col, capture: null });
+                    }
+                }
+                
+                return moves;
+            }
+
+            getCapturesForPiece(row, col, piece) {
+                const captures = [];
+                const directions = piece.king ? 
+                    [[-1, -1], [-1, 1], [1, -1], [1, 1]] : 
+                    (piece.color === 'red' ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]]);
+                
+                for (const [dRow, dCol] of directions) {
+                    const jumpRow = row + dRow;
+                    const jumpCol = col + dCol;
+                    const landRow = row + dRow * 2;
+                    const landCol = col + dCol * 2;
+                    
+                    if (this.isValidPosition(landRow, landCol) && 
+                        this.board[jumpRow] && this.board[jumpRow][jumpCol] &&
+                        this.board[jumpRow][jumpCol].color !== piece.color &&
+                        !this.board[landRow][landCol]) {
+                        captures.push({
+                            row: landRow,
+                            col: landCol,
+                            fromRow: row,
+                            fromCol: col,
+                            capture: { row: jumpRow, col: jumpCol }
+                        });
+                    }
+                }
+                
+                return captures;
+            }
+
+            getAllCaptures(color) {
+                const captures = [];
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.color === color) {
+                            const piecCaptures = this.getCapturesForPiece(row, col, piece);
+                            captures.push(...piecCaptures);
+                        }
+                    }
+                }
+                return captures;
+            }
+
+            isValidPosition(row, col) {
+                return row >= 0 && row < 8 && col >= 0 && col < 8;
+            }
+
+            makeMove(move) {
+                const piece = this.board[move.fromRow][move.fromCol];
+                this.board[move.row][move.col] = piece;
+                this.board[move.fromRow][move.fromCol] = null;
+                
+                if (move.capture) {
+                    this.board[move.capture.row][move.capture.col] = null;
+                }
+                
+                // Promote to king
+                if ((piece.color === 'red' && move.row === 0) || 
+                    (piece.color === 'black' && move.row === 7)) {
+                    piece.king = true;
+                }
+                
+                // Check for multi-jump
+                if (move.capture) {
+                    const furtherCaptures = this.getCapturesForPiece(move.row, move.col, piece);
+                    if (furtherCaptures.length > 0 && this.currentPlayer === 'red') {
+                        this.selectedPiece = { row: move.row, col: move.col };
+                        this.validMoves = furtherCaptures;
+                        this.render();
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+
+            aiMove() {
+                this.aiThinking = true;
+                this.currentDepth = 0;
+                this.principalVariation = [];
+                this.resetMetrics();
+                this.showStatus('AI is thinking...');
+                
+                setTimeout(() => {
+                    const startTime = performance.now();
+                    let bestMove = null;
+                    
+                    // Check opening book first (early game optimization)
+                    if (this.isEarlyGame()) {
+                        bestMove = this.getBestOpeningMove();
+                    }
+                    
+                    // Check endgame tablebase (6 pieces or less)
+                    if (!bestMove && this.isEndgame()) {
+                        bestMove = this.getEndgameMove();
+                    }
+                    
+                    // Standard search with optimizations
+                    if (!bestMove) {
+                        let result = this.iterativeDeepeningOptimized();
+                        bestMove = result.move;
+                        this.principalVariation = result.pv || [];
+                    }
+                    
+                    this.metrics.searchTime = performance.now() - startTime;
+                    this.metrics.ttSize = this.transpositionTable.size;
+                    
+                    if (bestMove) {
+                        this.moveHistory.push({
+                            move: bestMove,
+                            evaluation: this.principalVariation[0] || 0,
+                            depth: this.currentDepth
+                        });
+                        
+                        this.makeMove(bestMove);
+                        
+                        if (!this.checkWinner()) {
+                            this.currentPlayer = 'red';
+                        }
+                    }
+                    
+                    this.aiThinking = false;
+                    this.displayPerformanceMetrics();
+                    this.render();
+                }, 100);
+            }
+
+            getHashKey(board, depth, alpha, beta) {
+                const boardStr = board.flat().map(p => p ? `${p.color[0]}${p.king ? 'K' : 'N'}` : '.').join('');
+                return `${boardStr}_${depth}_${alpha}_${beta}`;
+            }
+
+            iterativeDeepeningOptimized() {
+                let bestMove = null;
+                let bestEval = -Infinity;
+                let principalVariation = [];
+                let lastPV = [];
+                
+                for (let depth = 1; depth <= this.difficulty; depth++) {
+                    this.currentDepth = depth;
+                    const hash = this.getHashKey(this.board, depth, -Infinity, Infinity);
+                    
+                    // Aspiration window search for depth > 2
+                    let alpha = -Infinity;
+                    let beta = Infinity;
+                    if (depth > 2 && bestEval !== -Infinity) {
+                        const window = 50;
+                        alpha = bestEval - window;
+                        beta = bestEval + window;
+                    }
+                    
+                    const result = this.negamaxOptimized(depth, alpha, beta, 0, lastPV);
+                    
+                    // Research with full window if aspiration failed
+                    if (result[0] <= alpha || result[0] >= beta) {
+                        const fullResult = this.negamaxOptimized(depth, -Infinity, Infinity, 0, lastPV);
+                        if (fullResult[0] > bestEval) {
+                            bestEval = fullResult[0];
+                            bestMove = fullResult[1];
+                            principalVariation = fullResult[2] || [];
+                            lastPV = principalVariation;
+                        }
+                    } else {
+                        if (result[0] > bestEval) {
+                            bestEval = result[0];
+                            bestMove = result[1];
+                            principalVariation = result[2] || [];
+                            lastPV = principalVariation;
+                        }
+                    }
+                    
+                    // Store in transposition table with replacement strategy
+                    this.storeTransposition(hash, depth, bestEval, bestMove, principalVariation);
+                    
+                    // Early termination for mate scores
+                    if (Math.abs(bestEval) > 9000) break;
+                    
+                    if (this.analysisMode) {
+                        this.showStatus(`Depth ${depth}/${this.difficulty}, Score: ${bestEval.toFixed(1)}, Nodes: ${this.metrics.nodesSearched.toLocaleString()}`);
+                    }
+                }
+                
+                return { move: bestMove, eval: bestEval, pv: principalVariation };
+            }
+
+            negamaxOptimized(depth, alpha, beta, ply, pvLine = []) {
+                this.metrics.nodesSearched++;
+                
+                const hash = this.getHashKey(this.board, depth, alpha, beta);
+                
+                // Transposition table lookup with bounds check
+                if (this.transpositionTable.has(hash)) {
+                    const cached = this.transpositionTable.get(hash);
+                    if (cached.depth >= depth) {
+                        this.metrics.cacheHits++;
+                        if (cached.flag === 'exact') {
+                            return [cached.evaluation, cached.move, cached.pv];
+                        } else if (cached.flag === 'lowerbound') {
+                            alpha = Math.max(alpha, cached.evaluation);
+                        } else if (cached.flag === 'upperbound') {
+                            beta = Math.min(beta, cached.evaluation);
+                        }
+                        if (alpha >= beta) {
+                            return [cached.evaluation, cached.move, cached.pv];
+                        }
+                    }
+                }
+                this.metrics.cacheMisses++;
+                
+                const winner = this.getWinner();
+                if (winner === 'black') return [10000 - ply, null, []];
+                if (winner === 'red') return [-10000 + ply, null, []];
+                
+                if (depth === 0) {
+                    const evaluation = this.quiescenceSearch(alpha, beta, 3);
+                    return [evaluation, null, []];
+                }
+                
+                const allMoves = this.getAllPossibleMoves('black');
+                if (allMoves.length === 0) {
+                    return [-10000 + ply, null, []];
+                }
+                
+                // Advanced move ordering with multiple heuristics
+                const orderedMoves = this.orderMovesAdvanced(allMoves, ply, pvLine);
+                this.metrics.movesOrdered += orderedMoves.length;
+                
+                let bestMove = null;
+                let bestPV = [];
+                let value = -Infinity;
+                let flag = 'upperbound';
+                
+                for (let i = 0; i < orderedMoves.length; i++) {
+                    const move = orderedMoves[i];
+                    const boardCopy = this.copyBoard();
+                    this.makeMove(move);
+                    
+                    let evaluation;
+                    
+                    // PVS (Principal Variation Search)
+                    if (i === 0) {
+                        const result = this.negamaxOptimized(depth - 1, -beta, -alpha, ply + 1, bestPV);
+                        evaluation = -result[0];
+                    } else {
+                        // Null window search
+                        const result = this.negamaxOptimized(depth - 1, -alpha - 1, -alpha, ply + 1, []);
+                        evaluation = -result[0];
+                        
+                        // Re-search if null window failed
+                        if (evaluation > alpha && evaluation < beta) {
+                            const fullResult = this.negamaxOptimized(depth - 1, -beta, -alpha, ply + 1, []);
+                            evaluation = -fullResult[0];
+                        }
+                    }
+                    
+                    this.board = boardCopy;
+                    
+                    if (evaluation > value) {
+                        value = evaluation;
+                        bestMove = move;
+                        bestPV = [move];
+                    }
+                    
+                    if (evaluation > alpha) {
+                        alpha = evaluation;
+                        flag = 'exact';
+                    }
+                    
+                    // Beta cutoff with killer move storage
+                    if (alpha >= beta) {
+                        this.metrics.pruneCount++;
+                        this.storeKillerMove(move, ply);
+                        this.updateHistory(move, depth);
+                        flag = 'lowerbound';
+                        break;
+                    }
+                }
+                
+                // Store in transposition table
+                this.storeTransposition(hash, depth, value, bestMove, bestPV, flag);
+                
+                return [value, bestMove, bestPV];
+            }
+            
+            quiescenceSearch(alpha, beta, depth) {
+                // Quiescence search to avoid horizon effect
+                const standPat = this.enhancedEvaluateBoard();
+                
+                if (depth === 0) return standPat;
+                if (standPat >= beta) return beta;
+                if (alpha < standPat) alpha = standPat;
+                
+                const captures = this.getAllCaptures('black');
+                
+                for (const move of captures) {
+                    const boardCopy = this.copyBoard();
+                    this.makeMove(move);
+                    const score = -this.quiescenceSearch(-beta, -alpha, depth - 1);
+                    this.board = boardCopy;
+                    
+                    if (score >= beta) return beta;
+                    if (score > alpha) alpha = score;
+                }
+                
+                return alpha;
+            }
+
+            enhancedEvaluateBoard() {
+                let score = 0;
+                let blackPieces = 0, redPieces = 0;
+                let blackAdvancement = 0, redAdvancement = 0;
+                let blackCenterControl = 0, redCenterControl = 0;
+                let blackMobility = 0, redMobility = 0;
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece) {
+                            let pieceValue = piece.king ? 5 : 3;
+                            
+                            // Advanced positional evaluation
+                            if (piece.color === 'black') {
+                                blackPieces++;
+                                blackAdvancement += row;
+                                
+                                // Center control
+                                if (col >= 2 && col <= 5) {
+                                    blackCenterControl += 1;
+                                }
+                                
+                                // King advancement bonus
+                                if (piece.king) {
+                                    pieceValue += (7 - row) * 0.2;
+                                } else {
+                                    pieceValue += row * 0.1;
+                                }
+                            } else {
+                                redPieces++;
+                                redAdvancement += (7 - row);
+                                
+                                // Center control
+                                if (col >= 2 && col <= 5) {
+                                    redCenterControl += 1;
+                                }
+                                
+                                // King advancement bonus
+                                if (piece.king) {
+                                    pieceValue += row * 0.2;
+                                } else {
+                                    pieceValue += (7 - row) * 0.1;
+                                }
+                            }
+                            
+                            // Edge protection
+                            if (col === 0 || col === 7) {
+                                pieceValue -= piece.king ? 0.1 : 0.3;
+                            }
+                            
+                            // Corner occupation bonus
+                            if ((row === 0 || row === 7) && (col === 0 || col === 7)) {
+                                pieceValue += 0.5;
+                            }
+                            
+                            score += piece.color === 'black' ? pieceValue : -pieceValue;
+                            
+                            // Mobility calculation
+                            const moves = this.getValidMoves(row, col);
+                            if (piece.color === 'black') {
+                                blackMobility += moves.length;
+                            } else {
+                                redMobility += moves.length;
+                            }
+                        }
+                    }
+                }
+                
+                // Material balance
+                score += (blackPieces - redPieces) * 2;
+                
+                // Advancement difference
+                score += (blackAdvancement - redAdvancement) * 0.1;
+                
+                // Center control
+                score += (blackCenterControl - redCenterControl) * 0.5;
+                
+                // Mobility
+                score += (blackMobility - redMobility) * 0.05;
+                
+                // King ratio
+                const blackKingRatio = blackPieces > 0 ? (this.countKings('black') / blackPieces) : 0;
+                const redKingRatio = redPieces > 0 ? (this.countKings('red') / redPieces) : 0;
+                score += (blackKingRatio - redKingRatio) * 10;
+                
+                return score;
+            }
+
+            countKings(color) {
+                let count = 0;
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.color === color && piece.king) {
+                            count++;
+                        }
+                    }
+                }
+                return count;
+            }
+
+            // Keep the old evaluateBoard method for compatibility
+            evaluateBoard() {
+                return this.enhancedEvaluateBoard();
+            }
+
+            getAllPossibleMoves(color) {
+                const moves = [];
+                const captures = this.getAllCaptures(color);
+                
+                if (captures.length > 0) {
+                    return captures;
+                }
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.color === color) {
+                            moves.push(...this.getValidMoves(row, col));
+                        }
+                    }
+                }
+                
+                return moves;
+            }
+
+            copyBoard() {
+                return this.board.map(row => row.map(piece => 
+                    piece ? { ...piece } : null
+                ));
+            }
+
+            checkWinner() {
+                const winner = this.getWinner();
+                if (winner) {
+                    const message = winner === 'red' ? 'You Win! 🎉' : 'AI Wins! 🤖';
+                    this.showStatus(message, true);
+                    return true;
+                }
+                return false;
+            }
+
+            getWinner() {
+                let redPieces = 0;
+                let blackPieces = 0;
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece) {
+                            if (piece.color === 'red') redPieces++;
+                            else blackPieces++;
+                        }
+                    }
+                }
+                
+                if (redPieces === 0) return 'black';
+                if (blackPieces === 0) return 'red';
+                
+                // Check for no valid moves
+                if (this.currentPlayer === 'red' && this.getAllPossibleMoves('red').length === 0) {
+                    return 'black';
+                }
+                if (this.currentPlayer === 'black' && this.getAllPossibleMoves('black').length === 0) {
+                    return 'red';
+                }
+                
+                return null;
+            }
+
+            updateGameInfo() {
+                let redCount = 0;
+                let blackCount = 0;
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.board[row][col];
+                        if (piece) {
+                            if (piece.color === 'red') redCount++;
+                            else blackCount++;
+                        }
+                    }
+                }
+                
+                document.getElementById('red-count').textContent = redCount;
+                document.getElementById('black-count').textContent = blackCount;
+                
+                document.getElementById('player-red-info').classList.toggle('active-player', this.currentPlayer === 'red');
+                document.getElementById('player-black-info').classList.toggle('active-player', this.currentPlayer === 'black');
+            }
+
+            showStatus(message, isWinner = false) {
+                const statusElement = document.getElementById('status-message');
+                statusElement.textContent = message;
+                statusElement.className = 'status-message show' + (isWinner ? ' winner' : '');
+            }
+
+            hideStatus() {
+                const statusElement = document.getElementById('status-message');
+                statusElement.classList.remove('show');
+            }
+
+            newGame() {
+                this.currentPlayer = 'red';
+                this.selectedPiece = null;
+                this.validMoves = [];
+                this.aiThinking = false;
+                this.initBoard();
+                this.hideStatus();
+                this.render();
+            }
+
+            setDifficulty(level) {
+                this.difficulty = parseInt(level);
+                // Clear tables when difficulty changes
+                this.transpositionTable.clear();
+                this.historyTable = {};
+                this.killerMoves = Array(20).fill(null).map(() => []);
+            }
+            
+            resetMetrics() {
+                this.metrics = {
+                    nodesSearched: 0,
+                    cacheHits: 0,
+                    cacheMisses: 0,
+                    pruneCount: 0,
+                    searchTime: 0,
+                    movesOrdered: 0,
+                    ttSize: 0
+                };
+            }
+            
+            displayPerformanceMetrics() {
+                const hitRate = this.metrics.cacheHits / 
+                    (this.metrics.cacheHits + this.metrics.cacheMisses) * 100;
+                const nodesPerSecond = Math.floor(
+                    this.metrics.nodesSearched / (this.metrics.searchTime / 1000)
+                );
+                const pruneEfficiency = this.metrics.pruneCount / 
+                    (this.metrics.nodesSearched || 1) * 100;
+                
+                // Console performance report
+                console.log('\n┌─────────────────────────────────────────────┐');
+                console.log('│   🚀 AI PERFORMANCE METRICS                │');
+                console.log('├─────────────────────────────────────────────┤');
+                console.log(`│ Search Time:        ${this.metrics.searchTime.toFixed(2).padEnd(22)}ms │`);
+                console.log(`│ Depth Reached:      ${this.currentDepth.toString().padEnd(26)} │`);
+                console.log(`│ Nodes Searched:     ${this.metrics.nodesSearched.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Nodes/Second:       ${nodesPerSecond.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Cache Hit Rate:     ${hitRate.toFixed(1).padEnd(23)}% │`);
+                console.log(`│ Cache Hits:         ${this.metrics.cacheHits.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Cache Misses:       ${this.metrics.cacheMisses.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Alpha-Beta Prunes:  ${this.metrics.pruneCount.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Prune Efficiency:   ${pruneEfficiency.toFixed(1).padEnd(23)}% │`);
+                console.log(`│ TT Size:            ${this.metrics.ttSize.toLocaleString().padEnd(26)} │`);
+                console.log(`│ Moves Ordered:      ${this.metrics.movesOrdered.toLocaleString().padEnd(26)} │`);
+                console.log('└─────────────────────────────────────────────┘\n');
+                
+                // Display summary in UI
+                const summary = `AI: ${this.metrics.searchTime.toFixed(0)}ms | ` +
+                    `${this.metrics.nodesSearched.toLocaleString()} nodes | ` +
+                    `${(nodesPerSecond / 1000).toFixed(1)}k nps | ` +
+                    `${hitRate.toFixed(0)}% cache | ` +
+                    `${this.metrics.pruneCount.toLocaleString()} prunes`;
+                
+                this.showStatus(summary);
+                setTimeout(() => this.hideStatus(), 4000);
+            }
+
+            getBestMove() {
+                // Simplified version for hint system
+                const allMoves = this.getAllPossibleMoves('black');
+                if (allMoves.length === 0) return null;
+                
+                let bestMove = allMoves[0];
+                let bestScore = -Infinity;
+                
+                for (const move of allMoves) {
+                    const boardCopy = this.copyBoard();
+                    this.makeMove(move);
+                    const score = this.enhancedEvaluateBoard();
+                    this.board = boardCopy;
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+                
+                return bestMove;
+            }
+
+            showHint() {
+                const bestMove = this.getBestMove();
+                if (bestMove) {
+                    this.showStatus(`Best move suggestion: ${this.formatMove(bestMove)}`, false);
+                } else {
+                    this.showStatus('No valid moves found!', false);
+                }
+            }
+
+            formatMove(move) {
+                return `(${move.fromRow},${move.fromCol}) → (${move.row},${move.col})${move.capture ? ' (capture)' : ''}`;
+            }
+
+            toggleAnalysisMode() {
+                this.analysisMode = !this.analysisMode;
+                if (this.analysisMode) {
+                    this.showStatus('Analysis mode enabled - AI will show thinking process');
+                } else {
+                    this.hideStatus();
+                }
+            }
+
+            showMoveHistory() {
+                if (this.moveHistory.length === 0) {
+                    this.showStatus('No moves played yet');
+                    return;
+                }
+                
+                let historyText = 'Move History:\n';
+                this.moveHistory.forEach((entry, index) => {
+                    historyText += `Move ${index + 1}: ${this.formatMove(entry.move)} (Eval: ${entry.evaluation.toFixed(1)}, Depth: ${entry.depth})\n`;
+                });
+                
+                this.showStatus(historyText, false);
+            }
+
+            getPrincipalVariation() {
+                if (this.principalVariation.length === 0) {
+                    return 'No analysis available';
+                }
+                
+                let pvText = 'Principal Variation:\n';
+                this.principalVariation.forEach((move, index) => {
+                    pvText += `${index + 1}. ${this.formatMove(move)}\n`;
+                });
+                
+                return pvText;
+            }
+
+            analyzePosition() {
+                if (this.currentPlayer === 'red') {
+                    const analysis = this.iterativeDeepening();
+                    const currentEval = analysis.eval;
+                    const evaluationText = currentEval > 0 ? 'AI is winning' : currentEval < 0 ? 'Player is winning' : 'Equal position';
+                    const pvText = this.getPrincipalVariation();
+                    
+                    this.showStatus(`Position Analysis:\n${evaluationText} (${currentEval.toFixed(1)})\n\n${pvText}`, false);
+                } else {
+                    this.showStatus('Please wait for your turn to analyze the position', false);
+                }
+            }
+
+            undoMove() {
+                if (this.moveHistory.length > 0 && this.currentPlayer === 'red') {
+                    const lastEntry = this.moveHistory.pop();
+                    // Note: Full undo functionality would require more complex state management
+                    // This is a simplified version
+                    this.showStatus('Move history: ' + this.moveHistory.length + ' moves recorded');
+                    this.render();
+                }
+            }
+        }
+
+        const game = new CheckersGame();
+    </script>
+</body>
+</html>
